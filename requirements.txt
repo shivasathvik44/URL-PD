@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------------------
+# Layer 1 - lexical analysis (offline)
+# ---------------------------------------------------------------------------
+# tldextract bundles a Public Suffix List snapshot, so registered-domain
+# extraction works fully offline (we pass suffix_list_urls=() ).
+tldextract>=5,<6
+
+# ---------------------------------------------------------------------------
+# Layer 2 - DNS / domain intelligence (network)
+# ---------------------------------------------------------------------------
+# DNS resolution (A/AAAA/NS/MX/PTR) with explicit timeouts.
+dnspython>=2.4,<3
+
+# Domain registration age. RDAP is preferred; python-whois is the fallback.
+# Both are optional at runtime - the code degrades to "age unavailable" if an
+# import fails - but they are required for the domain-age feature to work.
+whoisit>=3,<5          # modern RDAP client
+python-whois>=0.9      # WHOIS fallback
+
+# ---------------------------------------------------------------------------
+# Layer 3 - machine-learning classification
+# ---------------------------------------------------------------------------
+scikit-learn>=1.3      # RandomForestClassifier + metrics
+numpy>=1.24
+pandas>=2.0            # dataset assembly / cleaning / splitting
+joblib>=1.3            # model serialization
+
+# Optional: real per-prediction explanations (core project does NOT require it).
+#   pip install "shap>=0.44"
+
+# ---------------------------------------------------------------------------
+# Layer 4 - LLM page analysis (network + LLM, best-effort)
+# ---------------------------------------------------------------------------
+# Bounded page fetch (also used, lazily, by Layer 2's RDAP lookup above).
+requests>=2.31
+
+# The Layer 4 LLM stage defaults to a LOCAL model served by Ollama, reached over
+# plain HTTP with `requests` above - no extra Python package, and no API key.
+# Install the server separately (https://ollama.com/download) and pull the
+# model:  ollama pull gemma3:4b
+#
+# Optional: the Anthropic LLM client, for LLM_PROVIDER=anthropic (core project
+# does NOT require it - without it, or without ANTHROPIC_API_KEY, that provider
+# reports "unavailable" and the decision engine falls back to Layer 3 alone).
+#   pip install "anthropic>=0.40"
+
+# ---------------------------------------------------------------------------
+# development / testing
+# ---------------------------------------------------------------------------
+pytest>=7
+ruff>=0.5           # static analysis: ruff check src/ tests/

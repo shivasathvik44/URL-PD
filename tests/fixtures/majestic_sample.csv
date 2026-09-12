@@ -1,0 +1,4 @@
+GlobalRank,TldRank,Domain,TLD,RefSubNets,RefIPs
+1,1,google.com,com,500000,9000000
+2,1,wikipedia.org,org,400000,7000000
+3,2,willow-press.net,net,12,20

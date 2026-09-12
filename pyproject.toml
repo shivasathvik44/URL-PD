@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phishing-url-detector"
+version = "0.5.0"
+description = "Four-layer phishing URL detector (L1 lexical, L2 DNS/domain intel, L3 Random Forest, L4 page content + LLM)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "tldextract>=5,<6",
+    "dnspython>=2.4,<3",
+    "whoisit>=3,<5",
+    "python-whois>=0.9",
+    # Layer 3
+    "scikit-learn>=1.3",
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "joblib>=1.3",
+    # Layer 4 page fetch
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5"]
+explain = ["shap>=0.44"]      # optional: real per-prediction explanations
+llm = ["anthropic>=0.40"]    # optional: the Anthropic Layer 4 provider.
+                             # The default provider is a LOCAL Ollama server,
+                             # reached with `requests` - no extra package.
+
+[project.scripts]
+detector = "detector.cli:main"
+phishing-url-detector = "detector.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I", "UP", "S", "A", "C4", "RET", "SIM"]
+ignore = [
+    "E501",    # long lines are a judgement call, not a hard cap
+    "S101",    # assert: used throughout the test suite
+    "B008",    # frozen config dataclasses are intentionally used as defaults
+    "S110",    # try/except/pass: every remaining one is a deliberate best-effort
+               # path (cache write, RDAP bootstrap save) and now logs at debug
+    "E731",    # short lambdas for date coercion read better than defs here
+    "B905",    # zip(): the paired sequences are constructed together
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test doubles carry obviously-fake credentials, and the SSRF test suite must
+# name loopback/private/bind-all addresses to assert they are refused.
+"tests/*" = ["S104", "S105", "S106", "S107", "S311", "E741"]
+# Seeded `random` for reproducible synthetic sample data, never for secrets.
+"scripts/make_sample_dataset.py" = ["S311"]

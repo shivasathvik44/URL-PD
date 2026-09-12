@@ -1,0 +1,6 @@
+phish_id,url,phish_detail_url,submission_time,verified,verification_time,online,target
+100001,http://paypal-secure-login.tk/verify,http://phishtank/100001,2025-03-04T10:00:00+00:00,yes,2025-03-04T12:00:00+00:00,yes,PayPal
+100002,https://appleid.apple.com.account-verify.xyz/signin,http://phishtank/100002,2025-07-19T08:30:00+00:00,yes,2025-07-19T09:00:00+00:00,yes,Apple
+100003,http://192.0.2.44/webscr?cmd=_login-run,http://phishtank/100003,2026-02-11T22:15:00+00:00,yes,2026-02-11T22:45:00+00:00,yes,Other
+100004,http://arnazon.com/,http://phishtank/100004,2026-06-01T00:00:00+00:00,yes,2026-06-01T01:00:00+00:00,yes,Amazon
+100005,,http://phishtank/bad,2026-06-02T00:00:00+00:00,yes,,yes,Other

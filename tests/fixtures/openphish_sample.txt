@@ -1,0 +1,5 @@
+# openphish feed sample
+http://secure-update-account.click/login
+https://banking-verify.gq/confirm/session/9911
+http://xn--pypal-loginx.com/verify
+http://secure-update-account.click/login

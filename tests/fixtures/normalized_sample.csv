@@ -1,0 +1,7 @@
+url,label,source,date
+https://example.org/,0,manual,2025-01-15T00:00:00+00:00
+http://phish.example.tk/login,1,manual,2026-03-15T00:00:00+00:00
+not a url,1,manual,2026-03-16T00:00:00+00:00
+https://dup.example/,0,manual,2025-02-01T00:00:00+00:00
+https://dup.example/,0,manual,2025-02-02T00:00:00+00:00
+https://nolabel.example/,,manual,2025-02-03T00:00:00+00:00
