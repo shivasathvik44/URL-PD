@@ -48,4 +48,4 @@ requests>=2.31
 # development / testing
 # ---------------------------------------------------------------------------
 pytest>=7
-ruff>=0.5           # static analysis: ruff check src/ tests/
+ruff>=0.17.1           # static analysis: ruff check src/ tests/
