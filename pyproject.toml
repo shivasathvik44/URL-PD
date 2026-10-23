@@ -9,7 +9,7 @@ description = "Four-layer phishing URL detector (L1 lexical, L2 DNS/domain intel
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "tldextract>=5,<6",
+    "tldextract>=5.4.0,<6",
     "dnspython>=2.4,<3",
     "whoisit>=3,<5",
     "python-whois>=0.9",
