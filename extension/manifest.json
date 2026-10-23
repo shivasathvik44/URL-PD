@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Phishing URL Detector",
+  "version": "0.5.0",
+  "description": "Local phishing and malicious URL detector powered by the offline Python detector service.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "http://[::1]/*"
+  ],
+  "background": {
+    "scripts": [
+      "background/cache.js",
+      "background/api_client.js",
+      "background/background.js"
+    ]
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png",
+      "128": "icons/icon-128.png"
+    },
+    "default_title": "Phishing URL Detector"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "phishing-detector@local",
+      "strict_min_version": "109.0"
+    }
+  }
+}

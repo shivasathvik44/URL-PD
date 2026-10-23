@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phishing URL Detector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="header">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+        <span class="brand-name">Phishing Detector</span>
+      </div>
+      <button id="btn-open-options" class="icon-btn" title="Open Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Local Service Health Indicator -->
+    <div class="service-status-bar">
+      <span class="status-dot status-checking" id="service-dot"></span>
+      <span class="status-text" id="service-status-text">Checking local service...</span>
+    </div>
+
+    <!-- Active Tab Information -->
+    <div class="card-section">
+      <div class="field-label">Current Tab</div>
+      <div class="tab-url-text" id="tab-url-text">Loading current tab...</div>
+    </div>
+
+    <!-- Verdict Block -->
+    <div class="card-section" id="verdict-section">
+      <div class="verdict-row">
+        <div>
+          <span class="field-label">Verdict</span>
+          <div id="verdict-badge" class="verdict-badge badge-neutral">PENDING</div>
+        </div>
+        <div class="text-right">
+          <span class="field-label">Risk Score</span>
+          <div id="risk-score-text" class="risk-score-text">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reasons Section -->
+    <div class="card-section" id="reasons-section">
+      <span class="field-label">Analysis Evidence</span>
+      <ul id="popup-reasons-list" class="popup-reasons-list">
+        <li class="reasons-empty">No security indicators found.</li>
+      </ul>
+    </div>
+
+    <!-- Footer Controls -->
+    <div class="footer">
+      <button id="btn-rescan" class="btn btn-sm btn-outline">Rescan Page</button>
+      <span class="footer-note">Offline AI Security</span>
+    </div>
+  </div>
+
+  <script src="../background/api_client.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

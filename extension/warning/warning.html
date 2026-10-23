@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Warning — Phishing Detected</title>
+  <link rel="stylesheet" href="warning.css">
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="icon-wrap">
+        <svg class="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="title">Suspected Phishing Page Blocked</h1>
+        <p class="subtitle">Your local Phishing URL Detector identified this website as dangerous.</p>
+      </div>
+    </div>
+
+    <div class="target-box">
+      <span class="target-label">Destination Domain:</span>
+      <span id="target-domain" class="target-domain">Loading...</span>
+      <div id="target-url-wrap" class="target-url-wrap">
+        <span id="target-url" class="target-url"></span>
+      </div>
+    </div>
+
+    <div class="verdict-banner">
+      <div class="verdict-col">
+        <span class="badge badge-danger" id="classification-badge">PHISHING</span>
+      </div>
+      <div class="verdict-col text-right">
+        <span class="risk-label">Risk Severity Score:</span>
+        <span id="risk-score" class="risk-value">0.00</span>
+      </div>
+    </div>
+
+    <div class="section-title">Detected Evidence & Analysis Reasons:</div>
+    <ul id="reasons-list" class="reasons-list">
+      <li class="reason-item">Inspecting evidence from local detector...</li>
+    </ul>
+
+    <div class="notice-box">
+      <p>
+        <strong>Local Privacy Notice:</strong> This analysis was conducted offline on your computer by the local Python detector.
+        Your browsing activity and passwords were not transmitted to any cloud or external service.
+      </p>
+    </div>
+
+    <div class="actions">
+      <button id="btn-back" class="btn btn-primary">← Return to Safety</button>
+      <button id="btn-toggle-advanced" class="btn btn-outline">Advanced Options ▼</button>
+    </div>
+
+    <div id="advanced-panel" class="advanced-panel hidden">
+      <p class="warning-text">
+        Phishing websites often impersonate banks, email providers, or payment services to steal passwords and financial credentials. Continuing puts your data at risk.
+      </p>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-acknowledge">
+        <span>I understand the risks of credential exfiltration and wish to continue once.</span>
+      </label>
+      <button id="btn-continue" class="btn btn-danger" disabled>Continue to Website (Single Use)</button>
+    </div>
+  </div>
+
+  <script src="warning.js"></script>
+</body>
+</html>
