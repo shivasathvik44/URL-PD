@@ -15,7 +15,7 @@ dnspython>=2.4,<3
 # Both are optional at runtime - the code degrades to "age unavailable" if an
 # import fails - but they are required for the domain-age feature to work.
 whoisit>=3,<5          # modern RDAP client
-python-whois>=0.9      # WHOIS fallback
+python-whois>=0.9.6      # WHOIS fallback
 
 # ---------------------------------------------------------------------------
 # Layer 3 - machine-learning classification
