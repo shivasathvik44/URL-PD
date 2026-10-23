@@ -191,6 +191,55 @@ installing. After `pip install -e .` the console script is `detector`.
 
 ---
 
+## Local Service & Firefox Extension
+
+In addition to the Python library and CLI, the detector includes a local **FastAPI service** and a companion **Firefox WebExtension** (Manifest V3) for automated browser security.
+
+### 1. Run the Local Service
+
+Install the service dependencies and start the hardened daemon:
+
+```bash
+pip install -e ".[service]"
+python -m detector_service
+```
+
+- Binds exclusively to `127.0.0.1:8000` (loopback only).
+- Generates a local authentication token saved with `0600` permissions at `data/processed/service_token`.
+- Enforces Host header validation to mitigate DNS rebinding attacks.
+- Limits concurrent scans using an asynchronous semaphore.
+
+### 2. Load the Firefox WebExtension
+
+1. Open Firefox and go to `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on...** and select `extension/manifest.json`.
+3. Open the extension Options page (`about:addons` or popup gear icon).
+4. Paste your local bearer token (`cat data/processed/service_token`) and click **Save Settings**.
+5. As you browse, visited pages are scanned locally. Suspicious or phishing sites trigger a visual toolbar badge and redirect to an interstitial warning page (`warning/warning.html`) with risk scores and detected reasons.
+
+### 3. Build Deterministic Extension Release
+
+To package the Firefox WebExtension into a reproducible zip archive with an authoritative SHA-256 checksum:
+
+```bash
+python3 scripts/package_extension.py
+```
+
+This creates:
+- `dist/phishing-url-detector-extension-0.5.0.zip`
+- `dist/phishing-url-detector-extension-0.5.0.zip.sha256`
+
+Verify the archive checksum:
+
+```bash
+cd dist && sha256sum -c phishing-url-detector-extension-0.5.0.zip.sha256 && cd ..
+```
+
+See [`extension/README.md`](extension/README.md) for full architecture details, threat models, testing instructions, and packaging options.
+See [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) and [`SECURITY.md`](SECURITY.md) for release engineering and vulnerability policies.
+
+---
+
 # Layer 1 — Lexical analysis
 
 Parses a URL and extracts **41 deterministic, network-free features**. Layer 1
@@ -1000,8 +1049,10 @@ Per-layer timings are on every result (`result.timings_ms`).
 # Running the tests
 
 ```bash
-pytest                       # 438 tests, ~11 s
-ruff check src/ tests/       # static analysis
+pytest                       # 563 Python tests, ~10 s
+ruff check src/ tests/ scripts/ # static analysis
+node extension/tests/run_tests.js # 26 Firefox extension tests
+python3 scripts/security_audit.py # offline repository security audit
 ```
 
 **Nothing in the suite touches the network, a real LLM, or an API key.** Every
@@ -1035,6 +1086,9 @@ doubles: `FakeResolver` (DNS), `FakeHttpClient` (fetch), `FakeLLM`,
 | `test_layer4_integration.py` | the **real** `requests` client against a loopback HTTP server: cookie policy, GET-only, redirects, size/type limits, and the full fetch→HTML→form→LLM chain |
 | `test_layer2_timeouts.py` | DNS short-circuits, TLS skip, the Layer 2 budget, bounded name resolution |
 | `test_train_script.py` | end-to-end `detector train` on a fixture CSV |
+| `test_service.py` | local FastAPI service: health check, analyze endpoint, Host header validation, bearer auth, concurrency limits |
+| `test_service_ssrf.py` | service SSRF regression: IPv4/IPv6 loopback, private ranges, AWS metadata, DNS rebinding mitigations |
+| `test_package_extension.py` | Firefox extension packaging: deterministic bit-for-bit archives, manifest validation, sha256 checksums |
 
 ---
 
@@ -1042,46 +1096,68 @@ doubles: `FakeResolver` (DNS), `FakeHttpClient` (fetch), `FakeLLM`,
 
 ```
 phishing-url-detector/
-├── src/detector/
-│   ├── __init__.py            # public API
-│   ├── cli.py                 # analyze / features / train / evaluate
-│   ├── config.py              # EVERY tunable: Detector/ML/Decision/Network/LLM/Cache
-│   ├── security.py            # SSRF guard, sanitisation, redaction
-│   ├── observability.py       # structured logging, redaction filter, timings
-│   │
-│   ├── url_parser.py          # L1: safe scheme-tolerant parsing
-│   ├── brands.py              # L1: Levenshtein, typosquat, brand-in-place
-│   ├── lexical_features.py    # L1: extract_lexical_features()
-│   │
-│   ├── dns_features.py        # L2: A/AAAA/NS/MX/TTL/PTR + IP classification
-│   ├── domain_age.py          # L2: RDAP -> WHOIS (bootstrap cached)
-│   ├── tls_features.py        # L2: certificate inspection
-│   ├── domain_intelligence.py # L2: orchestration + per-domain rate limiting
-│   ├── layer2_cache.py        # L2: versioned SQLite cache, keyed by domain
-│   │
-│   ├── feature_schema.py      # L3: AUTHORITATIVE ordered schema + guards
-│   ├── feature_pipeline.py    # L3: layer dicts -> feature vector
-│   ├── dataset.py             # L3: loaders, cleaning, leakage-safe splits
-│   ├── model.py               # L3: PhishingModel + schema validation on load
-│   ├── evaluation.py          # L3: metrics, sweep, per-source breakdown
-│   ├── prediction.py          # L3: Predictor (mtime-keyed model cache)
-│   ├── train.py               # L3: training entry point
-│   │
-│   ├── web_fetcher.py         # L4a: SSRF-guarded bounded GET
-│   ├── html_analyzer.py       # L4b: static HTML analysis
-│   ├── form_analyzer.py       # L4c: field purpose + cross-domain destination
-│   ├── llm_client.py          # L4d: LLMClient protocol + Ollama/Anthropic clients
-│   ├── llm_analyzer.py        # L4d: fenced prompt + strict schema validation
-│   ├── page_cache.py          # L4: versioned SQLite cache, keyed by URL hash
-│   │
-│   ├── explanations.py        # reason codes -> human-readable messages
-│   ├── decision_engine.py     # triage + ordered combination rules
-│   └── pipeline.py            # analyze_url(): the one top-level API
+├── .github/
+│   ├── dependabot.yml         # weekly automated dependency & GitHub Actions updates
+│   └── workflows/ci.yml       # GitHub Actions CI matrix (Python 3.10-3.12, Node 20)
+├── extension/                 # Firefox WebExtension (MV3)
+│   ├── manifest.json          # Firefox add-on manifest
+│   ├── background/            # background service, cache, and API client
+│   ├── popup/                 # toolbar status popup
+│   ├── warning/               # interstitial phishing warning page
+│   ├── options/               # local service and token settings
+│   └── tests/                 # Node test suite (26 passing tests)
+├── src/
+│   ├── detector/              # core 4-layer detection engine
+│   │   ├── __init__.py        # public API
+│   │   ├── cli.py             # analyze / features / train / evaluate
+│   │   ├── config.py          # EVERY tunable: Detector/ML/Decision/Network/LLM/Cache
+│   │   ├── security.py        # SSRF guard, sanitisation, redaction
+│   │   ├── observability.py   # structured logging, redaction filter, timings
+│   │   │
+│   │   ├── url_parser.py      # L1: safe scheme-tolerant parsing
+│   │   ├── brands.py          # L1: Levenshtein, typosquat, brand-in-place
+│   │   ├── lexical_features.py# L1: extract_lexical_features()
+│   │   │
+│   │   ├── dns_features.py    # L2: A/AAAA/NS/MX/TTL/PTR + IP classification
+│   │   ├── domain_age.py      # L2: RDAP -> WHOIS (bootstrap cached)
+│   │   ├── tls_features.py    # L2: certificate inspection
+│   │   ├── domain_intelligence.py # L2: orchestration + per-domain rate limiting
+│   │   ├── layer2_cache.py    # L2: versioned SQLite cache, keyed by domain
+│   │   │
+│   │   ├── feature_schema.py  # L3: AUTHORITATIVE ordered schema + guards
+│   │   ├── feature_pipeline.py# L3: layer dicts -> feature vector
+│   │   ├── dataset.py         # L3: loaders, cleaning, leakage-safe splits
+│   │   ├── model.py           # L3: PhishingModel + schema validation on load
+│   │   ├── evaluation.py      # L3: metrics, sweep, per-source breakdown
+│   │   ├── prediction.py      # L3: Predictor (mtime-keyed model cache)
+│   │   ├── train.py           # L3: training entry point
+│   │   │
+│   │   ├── web_fetcher.py     # L4a: SSRF-guarded bounded GET
+│   │   ├── html_analyzer.py   # L4b: static HTML analysis
+│   │   ├── form_analyzer.py   # L4c: field purpose + cross-domain destination
+│   │   ├── llm_client.py      # L4d: LLMClient protocol + Ollama/Anthropic clients
+│   │   ├── llm_analyzer.py    # L4d: fenced prompt + strict schema validation
+│   │   ├── page_cache.py      # L4: versioned SQLite cache, keyed by URL hash
+│   │   │
+│   │   ├── explanations.py    # reason codes -> human-readable messages
+│   │   ├── decision_engine.py # triage + ordered combination rules
+│   │   └── pipeline.py        # analyze_url(): the one top-level API
+│   └── detector_service/      # local hardened FastAPI service
+│       ├── app.py             # FastAPI app, endpoints, Host header & auth validation
+│       ├── config.py          # loopback configuration & token generation
+│       ├── schemas.py         # Pydantic schemas for requests, responses & errors
+│       └── server.py          # Uvicorn runner bound to 127.0.0.1
 ├── data/                      # raw datasets (gitignored) + processed caches
 ├── models/                    # random_forest.joblib + feature_schema.json
 ├── reports/                   # feature importance, training metadata
-├── scripts/make_sample_dataset.py
-├── tests/                     # 438 tests, offline
+├── scripts/
+│   ├── make_sample_dataset.py # synthetic dataset generator
+│   ├── package_extension.py   # deterministic Firefox extension packaging
+│   ├── security_audit.py      # offline security and credential scanner
+│   └── train.py               # training helper script
+├── tests/                     # 563 offline tests (detector core + service + packaging)
+├── SECURITY.md                # vulnerability disclosure policy & threat model
+├── RELEASE_CHECKLIST.md       # step-by-step pre-release verification checklist
 ├── main.py                    # run from a checkout without installing
 └── pyproject.toml             # packaging, pytest and ruff config
 ```

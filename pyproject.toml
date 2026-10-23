@@ -28,6 +28,12 @@ explain = ["shap>=0.44"]      # optional: real per-prediction explanations
 llm = ["anthropic>=0.40"]    # optional: the Anthropic Layer 4 provider.
                              # The default provider is a LOCAL Ollama server,
                              # reached with `requests` - no extra package.
+service = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "pydantic>=2.0.0",
+]
+
 
 [project.scripts]
 detector = "detector.cli:main"
@@ -37,7 +43,7 @@ phishing-url-detector = "detector.cli:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "tests"]
+pythonpath = ["src", "tests", "."]
 testpaths = ["tests"]
 
 [tool.ruff]

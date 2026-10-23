@@ -39,6 +39,9 @@ data/processed/rdap_bootstrap.json
 .env.*
 *.key
 *.pem
+data/processed/service_token
+*service_token*
+
 
 # raw datasets: never commit downloaded PhishTank/OpenPhish/Tranco/Majestic dumps
 data/raw/*
