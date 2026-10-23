@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Principle of least privilege
+permissions:
+  contents: read
+
+jobs:
+  python-test:
+    name: Python Quality & Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,service]"
+
+      - name: Run Ruff static analysis
+        run: ruff check src/ tests/ scripts/
+
+      - name: Run repository security audit
+        run: python scripts/security_audit.py
+
+      - name: Run Python test suite
+        run: pytest --tb=short
+
+  extension-test:
+    name: Firefox WebExtension Tests & Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 20
+
+      - name: Validate manifest.json syntax and structure
+        run: |
+          node -e '
+            const fs = require("fs");
+            const raw = fs.readFileSync("extension/manifest.json", "utf8");
+            const m = JSON.parse(raw);
+            if (m.manifest_version !== 3) throw new Error("Manifest version must be 3");
+            if (!m.name || !m.version) throw new Error("Manifest missing name or version");
+            if (!m.browser_specific_settings?.gecko?.id) throw new Error("Manifest missing gecko.id");
+            console.log("manifest.json valid. Name: " + m.name + " v" + m.version);
+          '
+
+      - name: Verify required extension files exist
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const requiredFiles = [
+              "extension/manifest.json",
+              "extension/background/cache.js",
+              "extension/background/api_client.js",
+              "extension/background/background.js",
+              "extension/popup/popup.html",
+              "extension/popup/popup.js",
+              "extension/warning/warning.html",
+              "extension/warning/warning.js",
+              "extension/options/options.html",
+              "extension/options/options.js",
+              "extension/icons/icon-16.png",
+              "extension/icons/icon-32.png",
+              "extension/icons/icon-48.png",
+              "extension/icons/icon-96.png",
+              "extension/icons/icon-128.png",
+            ];
+            for (const f of requiredFiles) {
+              if (!fs.existsSync(f)) throw new Error("Missing required extension file: " + f);
+            }
+            console.log("All " + requiredFiles.length + " required extension files verified.");
+          '
+
+      - name: Run extension test suite
+        run: node extension/tests/run_tests.js
+
+      - name: Test deterministic extension packaging and checksum
+        run: |
+          python3 scripts/package_extension.py
+          cd dist && sha256sum -c phishing-url-detector-extension-*.zip.sha256
