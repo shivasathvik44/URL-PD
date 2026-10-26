@@ -24,7 +24,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "ruff>=0.5"]
-explain = ["shap>=0.44"]      # optional: real per-prediction explanations
+explain = ["shap>=0.49.1"]      # optional: real per-prediction explanations
 llm = ["anthropic>=0.40"]    # optional: the Anthropic Layer 4 provider.
                              # The default provider is a LOCAL Ollama server,
                              # reached with `requests` - no extra package.
