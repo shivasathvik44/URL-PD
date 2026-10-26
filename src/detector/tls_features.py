@@ -144,17 +144,18 @@ def inspect_tls(
         return TLSResult(host="", checked=False, tls_error="empty-host")
 
     # Same SSRF policy as Layer 4 - never open a TLS socket to an internal host.
-    if not network.allow_private_targets:
-        try:
-            check_fetch_target(f"https://{host}:{port}/", network)
-        except UnsafeTargetError as exc:
-            return TLSResult(host=host, checked=False, tls_error=f"blocked: {exc}")
+    pinned_ip: str | None = None
+    try:
+        target = check_fetch_target(f"https://{host}:{port}/", network)
+        pinned_ip = target.primary_address
+    except UnsafeTargetError as exc:
+        return TLSResult(host=host, checked=False, tls_error=f"blocked: {exc}")
 
     timeout = config.tls_timeout
 
     # Tier 1: full verification (valid chain AND matching hostname).
     strict = ssl.create_default_context()
-    cert, tls_version, verify_error = _handshake(host, port, strict, timeout)
+    cert, tls_version, verify_error = _handshake(host, port, strict, timeout, pinned_ip=pinned_ip)
     if cert:
         return _build(host, cert, tls_version, verified=True, tls_error=None)
 
@@ -164,7 +165,7 @@ def inspect_tls(
     # a common phishing pattern worth reporting precisely.
     chain_only = ssl.create_default_context()
     chain_only.check_hostname = False
-    cert, tls_version, chain_error = _handshake(host, port, chain_only, timeout)
+    cert, tls_version, chain_error = _handshake(host, port, chain_only, timeout, pinned_ip=pinned_ip)
     if cert:
         return _build(host, cert, tls_version, verified=False, tls_error=verify_error)
 
@@ -173,7 +174,7 @@ def inspect_tls(
     insecure = ssl.create_default_context()
     insecure.check_hostname = False
     insecure.verify_mode = ssl.CERT_NONE
-    _cert, tls_version, connect_error = _handshake(host, port, insecure, timeout)
+    _cert, tls_version, connect_error = _handshake(host, port, insecure, timeout, pinned_ip=pinned_ip)
     if tls_version is not None:
         return TLSResult(
             host=host, checked=True, tls_available=True, cert_valid=False,
@@ -187,10 +188,13 @@ def inspect_tls(
     )
 
 
-def _handshake(host: str, port: int, context: ssl.SSLContext, timeout: float):
+def _handshake(
+    host: str, port: int, context: ssl.SSLContext, timeout: float, *, pinned_ip: str | None = None
+):
     """Return (cert_dict_or_None, tls_version_or_None, error_string_or_None)."""
     try:
-        with socket.create_connection((host, port), timeout=timeout) as raw:
+        connect_host = pinned_ip or host
+        with socket.create_connection((connect_host, port), timeout=timeout) as raw:
             raw.settimeout(timeout)
             with context.wrap_socket(raw, server_hostname=host) as tls:
                 return (tls.getpeercert() or None), tls.version(), None

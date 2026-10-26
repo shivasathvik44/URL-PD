@@ -28,27 +28,63 @@ from detector.security import (
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("address", [
     "127.0.0.1",            # loopback
+    "127.0.0.2",            # loopback
+    "127.255.255.254",      # loopback
     "0.0.0.0",              # unspecified
+    "0.0.0.1",              # current network
     "10.0.0.5",             # RFC1918
     "172.16.4.4",           # RFC1918
+    "172.31.255.254",       # RFC1918
     "192.168.1.1",          # RFC1918
     "169.254.169.254",      # cloud metadata - the classic SSRF target
     "169.254.0.1",          # link-local
     "100.64.0.1",           # CGNAT
+    "192.0.0.1",            # IETF protocol assignments
+    "192.0.2.1",            # TEST-NET-1 documentation
+    "198.51.100.1",         # TEST-NET-2 documentation
+    "203.0.113.1",          # TEST-NET-3 documentation
+    "198.18.0.1",           # benchmarking
+    "192.88.99.1",          # 6to4 relay
     "224.0.0.1",            # multicast
+    "239.255.255.255",      # multicast
     "240.0.0.1",            # reserved
+    "255.255.255.255",      # broadcast
+    "::",                   # IPv6 unspecified
     "::1",                  # IPv6 loopback
     "fe80::1",              # IPv6 link-local
+    "fe80::dead:beef",      # IPv6 link-local
     "fc00::1",              # IPv6 unique-local
+    "fd12:3456:789a::1",    # IPv6 unique-local
+    "ff02::1",              # IPv6 multicast
+    "ff01::1",              # IPv6 interface-local multicast
+    "2001:db8::1",          # IPv6 documentation
+    "100::1",               # IPv6 discard
     "::ffff:127.0.0.1",     # IPv4-mapped loopback
     "::ffff:10.0.0.1",      # IPv4-mapped RFC1918
+    "::ffff:169.254.169.254", # IPv4-mapped metadata
+    "::127.0.0.1",          # IPv4-compatible loopback
+    "::10.0.0.1",           # IPv4-compatible private
+    "64:ff9b::127.0.0.1",   # NAT64 loopback
+    "64:ff9b::10.0.0.1",    # NAT64 private
+    "64:ff9b:1::192.168.1.1", # local NAT64 private
+    "2002:7f00:0001::",     # 6to4 loopback
+    "2002:0a00:0001::",     # 6to4 private
+    "2001:0::ffff:7f00:1",  # Teredo loopback
     "not-an-ip",
 ])
 def test_non_public_addresses_rejected(address):
     assert is_public_address(address) is False
 
 
-@pytest.mark.parametrize("address", ["8.8.8.8", "1.1.1.1", "93.184.216.34", "2606:4700::1111"])
+@pytest.mark.parametrize("address", [
+    "8.8.8.8",
+    "1.1.1.1",
+    "93.184.216.34",
+    "2606:4700::1111",
+    "2001:4860:4860::8888",
+    "::ffff:8.8.8.8",
+    "2002:0808:0808::",
+])
 def test_public_addresses_accepted(address):
     assert is_public_address(address) is True
 
@@ -89,6 +125,15 @@ def test_empty_and_hostless_urls_refused():
     "http://[::1]:9200/_cluster/health",
     "https://0.0.0.0/",
     "http://100.64.1.1/",
+    "http://0177.0.0.1/",                     # octal loopback
+    "http://0x7f.0.0.1/",                     # hex loopback
+    "http://0x7f000001/",                     # hex dword loopback
+    "http://2130706433/",                     # integer dword loopback
+    "http://127.1/",                          # truncated IPv4
+    "http://[::127.0.0.1]/",                  # IPv4-compatible loopback
+    "http://[64:ff9b::127.0.0.1]/",           # NAT64 loopback
+    "http://[2002:7f00:1::]/",                # 6to4 loopback
+    "http://[::ffff:169.254.169.254]/",       # IPv4-mapped metadata
 ])
 def test_internal_targets_refused(url):
     with pytest.raises(UnsafeTargetError):
@@ -100,6 +145,58 @@ def test_public_literal_ip_allowed():
     assert target.host == "8.8.8.8"
     assert target.port == 443
     assert target.addresses == ("8.8.8.8",)
+    assert target.pinned_address == "8.8.8.8"
+
+
+def test_public_literal_ipv6_allowed():
+    target = check_fetch_target("https://[2606:4700::1111]:8443/", DEFAULT_NETWORK_CONFIG)
+    assert target.host == "2606:4700::1111"
+    assert target.port == 8443
+    assert target.addresses == ("2606:4700::1111",)
+    assert target.pinned_address == "2606:4700::1111"
+
+
+def test_alternative_numeric_public_ip_rejected_as_non_canonical():
+    """Even if an alternative numeric IP encodes a public IP, it must be rejected."""
+    with pytest.raises(UnsafeTargetError) as exc:
+        check_fetch_target("http://0x08080808/", DEFAULT_NETWORK_CONFIG)
+    assert "non-canonical" in str(exc.value) or "refusing" in str(exc.value)
+
+
+def test_mixed_dns_answers_rejected():
+    """A hostname resolving to both public and private addresses must be rejected."""
+    from unittest.mock import patch
+
+    with patch("detector.security._resolve_host", return_value=["93.184.216.34", "127.0.0.1"]):
+        with pytest.raises(UnsafeTargetError) as exc:
+            check_fetch_target("https://mixed-dns.example/", DEFAULT_NETWORK_CONFIG)
+        assert "non-public" in str(exc.value)
+
+    with patch("detector.security._resolve_host", return_value=["93.184.216.34", "::1"]):
+        with pytest.raises(UnsafeTargetError) as exc:
+            check_fetch_target("https://mixed-v6-dns.example/", DEFAULT_NETWORK_CONFIG)
+        assert "non-public" in str(exc.value)
+
+
+def test_idna_hostname_normalized():
+    """Internationalized domain names must be normalized via IDNA to ASCII punycode."""
+    from unittest.mock import patch
+
+    with patch("detector.security._resolve_host", return_value=["93.184.216.34"]) as mock_resolve:
+        target = check_fetch_target("https://exämple.com/", DEFAULT_NETWORK_CONFIG)
+        assert target.host == "xn--exmple-cua.com"
+        assert target.pinned_address == "93.184.216.34"
+        mock_resolve.assert_called_once_with("xn--exmple-cua.com", 443)
+
+
+@pytest.mark.parametrize("bad_port_url", [
+    "http://example.com:0/",
+    "http://example.com:65536/",
+    "http://example.com:70000/",
+])
+def test_invalid_ports_refused(bad_port_url):
+    with pytest.raises(UnsafeTargetError):
+        check_fetch_target(bad_port_url, DEFAULT_NETWORK_CONFIG)
 
 
 def test_explicitly_blocked_hostname_refused():

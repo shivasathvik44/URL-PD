@@ -49,9 +49,10 @@ The project operates under a defense-in-depth security architecture designed aro
 - **Request Validation:** Incoming URLs are strictly validated: length capped at 2048 characters, scheme restricted to HTTP/HTTPS, and malformed inputs rejected early.
 
 ### 2. SSRF Protection (Layer 4 Content Fetcher)
-- **Pre-Fetch Target Validation:** Any outbound HTTP requests executed by the Layer 4 content fetcher resolve the destination host before connecting and reject private, loopback, link-local, multicast, reserved, and cloud metadata IP addresses (e.g., `169.254.169.254`).
-- **Redirect Revalidation:** Each redirect hop is independently re-validated against the SSRF filter before being followed.
-- **Resource Constraints:** Timeouts and byte-stream caps prevent slowloris or denial-of-service via oversized page payloads.
+- **Pre-Fetch Target Validation & Connection Pinning:** Outbound HTTP requests executed by the Layer 4 content fetcher resolve and validate the destination host before connecting, rejecting private, loopback, link-local, multicast, reserved, and cloud metadata IP addresses (e.g., `169.254.169.254`). TCP sockets are pinned directly to the pre-validated IP at connect time (`PinnedHTTPAdapter`), mitigating DNS rebinding TOCTOU attacks while preserving TLS SNI, certificate hostname validation, and HTTP `Host` virtual hosting.
+- **Redirect Revalidation:** Each redirect hop is independently re-validated against the SSRF filter and re-pinned before being followed, with automatic redirect following disabled, redirect loops terminated, and intermediate responses safely closed.
+- **Environment & Proxy Isolation:** Ambient environment proxies (`HTTP_PROXY`, `HTTPS_PROXY`) are ignored (`trust_env = False`) and explicit proxy configurations are refused to ensure connection pinning cannot be bypassed.
+- **Resource Constraints:** Strict connect/read timeouts, total fetch deadlines, and streaming byte-size caps prevent slowloris or denial-of-service via oversized page payloads.
 
 ### 3. Firefox WebExtension
 - **Least Privilege:** Permissions are restricted to `storage`, `tabs`, and `webNavigation`. Host permissions are strictly restricted to loopback service endpoints (`http://127.0.0.1/*`, `http://localhost/*`, `http://[::1]/*`).

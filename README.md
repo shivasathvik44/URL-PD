@@ -782,12 +782,19 @@ PageContent(fetched=False,
 A refusal is a **policy outcome**, not evidence: a blocked fetch never counts
 toward a phishing verdict.
 
-**Residual risk — DNS rebinding.** A determined attacker controlling DNS can
-still race the gap between our resolve-and-validate and the library's own
-connect-time resolution. The mitigation is pinning the validated IP at connect
-time; the current guard validates every hop but does not pin. For hostile-input
-deployments, run the fetcher in a network-isolated sandbox (egress firewall
-restricted to public ranges) rather than relying on the guard alone.
+**DNS rebinding mitigation — connect-time IP pinning.** The fetcher defeats
+DNS rebinding (TOCTOU race conditions between validation and socket connection)
+by using `PinnedHTTPAdapter`. When `check_fetch_target` validates an address,
+the TCP socket in `PinnedHTTPConnection` / `PinnedHTTPSConnection` is bound
+directly to the validated IP, bypassing connect-time DNS resolution while
+preserving the requested hostname for the HTTP `Host` header, TLS Server Name
+Indication (SNI), and TLS certificate hostname verification. Ambient proxies
+via `trust_env` are disabled and proxy configurations are refused to ensure
+pinning cannot be bypassed.
+
+For hostile-input production deployments, running the fetcher in a network-isolated
+sandbox (egress firewall restricted to public ranges) remains recommended as
+defense-in-depth.
 
 `allow_private_targets=True` disables the address checks for controlled test
 environments. The scheme allowlist still applies. **Never enable it in
@@ -1088,6 +1095,7 @@ doubles: `FakeResolver` (DNS), `FakeHttpClient` (fetch), `FakeLLM`,
 | `test_train_script.py` | end-to-end `detector train` on a fixture CSV |
 | `test_service.py` | local FastAPI service: health check, analyze endpoint, Host header validation, bearer auth, concurrency limits |
 | `test_service_ssrf.py` | service SSRF regression: IPv4/IPv6 loopback, private ranges, AWS metadata, DNS rebinding mitigations |
+| `test_connection_pinning_ssrf.py` | connection pinning & SSRF: DNS rebinding mitigation, IPv4/IPv6 special ranges, alternative IP encodings, redirect hop re-validation, TLS SNI & certificate verification under pinning, proxy rejection |
 | `test_package_extension.py` | Firefox extension packaging: deterministic bit-for-bit archives, manifest validation, sha256 checksums |
 
 ---
@@ -1170,8 +1178,9 @@ phishing-url-detector/
 is the first line of defence, not the only one you should have:
 
 - Run the detector with **egress restricted to public address ranges** at the
-  network level. The guard validates every hop, but a firewall closes the DNS
-  rebinding race the guard cannot.
+  network level. The fetcher validates every hop and pins TCP connections to
+  validated IPs, while network-level egress filtering provides defense-in-depth
+  against system-level escapes.
 - Run it as an **unprivileged user** with no access to internal services,
   cloud metadata endpoints, or credentials it does not need.
 - The detector needs outbound **DNS**, **HTTPS to arbitrary public hosts**
@@ -1217,7 +1226,7 @@ do not select it for URLs whose contents must not leave your environment.
   rule table, not a model trained on labelled combined-signal data.
 - **Policy is thresholds and lists only** — no per-tenant policy, no
   human-review queue, no feedback loop from analyst decisions.
-- **DNS rebinding** is mitigated by hop-wise validation but not by connect-time
-  IP pinning; see the SSRF section.
+- **DNS rebinding** is mitigated via connect-time IP pinning and hop-wise
+  validation in `PinnedHTTPAdapter`; see the SSRF section.
 - **Single-process, synchronous.** No batch concurrency, no rate-limited worker
   pool for bulk scanning.

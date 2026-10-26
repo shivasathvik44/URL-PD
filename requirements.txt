@@ -32,7 +32,7 @@ joblib>=1.3            # model serialization
 # Layer 4 - LLM page analysis (network + LLM, best-effort)
 # ---------------------------------------------------------------------------
 # Bounded page fetch (also used, lazily, by Layer 2's RDAP lookup above).
-requests>=2.31
+requests>=2.32.0
 
 # The Layer 4 LLM stage defaults to a LOCAL model served by Ollama, reached over
 # plain HTTP with `requests` above - no extra Python package, and no API key.
