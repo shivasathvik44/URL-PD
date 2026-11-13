@@ -282,7 +282,7 @@ def check_fetch_target(
         raise UnsafeTargetError("URL has no host")
 
     try:
-        port = parts.port or (443 if scheme == "https" else 80)
+        port = parts.port if parts.port is not None else (443 if scheme == "https" else 80)
     except ValueError as exc:
         raise UnsafeTargetError(f"invalid port: {exc}") from exc
     if not (1 <= port <= 65535):
