@@ -1056,7 +1056,7 @@ Per-layer timings are on every result (`result.timings_ms`).
 # Running the tests
 
 ```bash
-pytest                       # 563 Python tests, ~10 s
+pytest                       # 680 Python tests, ~15 s
 ruff check src/ tests/ scripts/ # static analysis
 node extension/tests/run_tests.js # 26 Firefox extension tests
 python3 scripts/security_audit.py # offline repository security audit
@@ -1163,7 +1163,7 @@ phishing-url-detector/
 │   ├── package_extension.py   # deterministic Firefox extension packaging
 │   ├── security_audit.py      # offline security and credential scanner
 │   └── train.py               # training helper script
-├── tests/                     # 563 offline tests (detector core + service + packaging)
+├── tests/                     # 680 offline tests (detector core + service + packaging)
 ├── SECURITY.md                # vulnerability disclosure policy & threat model
 ├── RELEASE_CHECKLIST.md       # step-by-step pre-release verification checklist
 ├── main.py                    # run from a checkout without installing
